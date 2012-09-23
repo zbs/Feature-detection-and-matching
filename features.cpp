@@ -451,7 +451,7 @@ void ComputeSimpleDescriptors(CFloatImage &image, FeatureSet &features)
 				}
 				else
 				{
-					f.data.push_back(grayImage.Pixel(x,y,0));
+					f.data.push_back(grayImage.Pixel(col,row,0));
 				}
 			}
 		}
@@ -463,76 +463,58 @@ void ComputeSimpleDescriptors(CFloatImage &image, FeatureSet &features)
 void ComputeMOPSDescriptors(CFloatImage &image, FeatureSet &features)
 {
 	CFloatImage grayImage=ConvertToGray(image);
+	CFloatImage postHomography = CFloatImage();
 
     vector<Feature>::iterator i = features.begin();
     while (i != features.end()) {
-       /* Feature &f = *i;
+		Feature &f = *i;
+
+		CTransform3x3 translationNegative;
+		CTransform3x3 translationPositive;
+		CTransform3x3 rotation;
+		translationNegative = translationNegative.Translation(-f.x,-f.y);
+		translationPositive = translationPositive.Translation(f.x,f.y);
+		rotation = rotation.Rotation(-f.angleRadians);
 
 
-		double transformation_h[9] = {1.0, 0.0, -f.x,
-						0.0, 1.0, -f.y,
-						0.0, 0.0, 1};
+		WarpGlobal(grayImage,postHomography, translationPositive*rotation*translationNegative, eWarpInterpLinear, 1.0f);
 
-		double rotation_h[9] = {cos(f.angleRadians), -sin(f.angleRadians), 0,
-						sin(f.angleRadians), cos(f.angleRadians), 0,
-						0, 0, 1};
-
-		//go through the entire image and apply the homography to each point
-		hash_map<pair<int, int>,pair<int,int>> translationHash;
-		list<pair<int,int>> translationList;
-		for(int y=0; y<grayImage.Shape().height; y++)
+		//now we get the 41x41 box around the feature
+		for(int row=(f.y-20); row<=(f.y+20); row++)
 		{
-			for(int x=0; x<grayImage.Shape().width; x++)
+			for(int col=(f.x-20);col<=(f.x+20);col++)
 			{
-				double newY;
-				double newX;
-				applyHomography(x, y, newX, newY, transformation_h);
-
-				pair<int,int> key;
-				key.first = newX;
-				key.second = newY;
-
-				pair<int,int> val;
-				val.first = x;
-				val.second = y;
-
-				translationHash.insert(key,val);
-				translationList.push_back(key);
+				if(row<0 || row>=grayImage.Shape().height || col<0 || col>=grayImage.Shape().width)
+				{
+					f.data.push_back(0.0);
+				}
+				else
+				{
+					f.data.push_back(grayImage.Pixel(col,row,0));
+				}
 			}
 		}
 
-		hash_map<pair<int, int>,pair<int,int>> rotationHash;
-		list<pair<int,int>> rotationList;
-		for(int y=0; y<grayImage.Shape().height; y++)
-		{
-			for(int x=0; x<grayImage.Shape().width; x++)
-			{
-				double newY;
-				double newX;
-				applyHomography(x, y, newX, newY, rotation_h);
+		// now we do the subsampling
 
-				pair<int,int> key;
-				key.first = int(newX+0.5);
-				key.second = int(newY+0.5);
-
-				pair<int, int> val;
-				val.first = x;
-				val.second = y;
-
-				rotationHash.insert(key,val);
-				rotationList.push_back(key);
-			}
-		}
-		double newArr[41*41];
-		for(int x=-20; x<=20; x++)
-		{
-			for(int y=-20; y<=20; y++)
-			{
-				pair<int,int>t;
-			}
-		}*/
 		i++;
 	}
+}
+
+CFloatImage featureToImage(Feature f, int height, int width)
+{
+	vector<double, std::allocator<double>>::iterator it;
+	float *matrix = new float[width*height];
+	int matIndex = 0;
+	it = f.data.begin();
+	while (it != f.data.end()) {
+		double freq = *it;
+		matrix[matIndex] = freq;
+		matIndex++;
+		it++;
+	}
+	CFloatImage img = GetImageFromMatrix(matrix, width, height);
+	return img;
 }
 
 // Compute Custom descriptors (extra credit)
