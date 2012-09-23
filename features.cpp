@@ -2,6 +2,7 @@
 
 #include <assert.h>
 #include <math.h>
+#include <hash_map>
 #include <FL/Fl.H>
 #include <FL/Fl_Image.H>
 #include "features.h"
@@ -280,7 +281,18 @@ void computeHarrisValues(CFloatImage &srcImage, CFloatImage &harrisImage)
     int w = srcImage.Shape().width;
     int h = srcImage.Shape().height;
 
-    for (int y = 0; y < h; y++) {
+	CFloatImage partialX3x3Knl;
+	CFloatImage partialY3x3Knl;
+
+	partialX3x3Knl.ReAllocate(CShape(3,3,1),derivativeX3x3,false,3);
+	partialX3x3Knl.origin[0] = 1;
+	
+	partialY3x3Knl.ReAllocate(CShape(3,3,1),derivativeY3x3,false,3);
+	partialY3x3Knl.origin[0] = 1;
+
+
+
+	for (int y = 0; y < h; y++) {
         for (int x = 0; x < w; x++) {
             
             // TODO:  Compute the harris score for 'srcImage' at this pixel and store in 'harrisImage'.  See the project
@@ -312,10 +324,26 @@ void ComputeSimpleDescriptors(CFloatImage &image, FeatureSet &features)
     vector<Feature>::iterator i = features.begin();
     while (i != features.end()) {
         Feature &f = *i;
+		//these fields should already be set in the computeFeatures function
+		int x = f.x;
+		int y = f.y;
 
-        //TO DO---------------------------------------------------------------------
-        // The descriptor is a 5x5 window of intensities sampled centered on the feature point.
-
+		// now get the 5x5 window surrounding the feature and store them in the features
+		for(int row=(y-2); row<=(y+2); row++)
+		{
+			for(int col=(x-2); col<=(x+2); col++)
+			{
+				//if the pixel is out of bounds, assume it is black
+				if(row<0 || row>=grayImage.Shape().height || col<0 || col>=grayImage.Shape().width)
+				{
+					f.data.push_back(0.0);
+				}
+				else
+				{
+					f.data.push_back(grayImage.Pixel(x,y,0));
+				}
+			}
+		}
         i++;
     }
 }
@@ -323,7 +351,77 @@ void ComputeSimpleDescriptors(CFloatImage &image, FeatureSet &features)
 // Compute MOPs descriptors.
 void ComputeMOPSDescriptors(CFloatImage &image, FeatureSet &features)
 {
+	CFloatImage grayImage=ConvertToGray(image);
 
+    vector<Feature>::iterator i = features.begin();
+    while (i != features.end()) {
+        Feature &f = *i;
+
+
+		double transformation_h[9] = {1.0, 0.0, -f.x,
+						0.0, 1.0, -f.y,
+						0.0, 0.0, 1};
+
+		double rotation_h[9] = {cos(f.angleRadians), -sin(f.angleRadians), 0,
+						sin(f.angleRadians), cos(f.angleRadians), 0,
+						0, 0, 1};
+
+		//go through the entire image and apply the homography to each point
+		hash_map<pair<int, int>,pair<int,int>> translationHash;
+		list<pair<int,int>> translationList;
+		for(int y=0; y<grayImage.Shape().height; y++)
+		{
+			for(int x=0; x<grayImage.Shape().width; x++)
+			{
+				double newY;
+				double newX;
+				applyHomography(x, y, newX, newY, transformation_h);
+
+				pair<int,int> key;
+				key.first = newX;
+				key.second = newY;
+
+				pair<int,int> val;
+				val.first = x;
+				val.second = y;
+
+				translationHash.insert(key,val);
+				translationList.push_back(key);
+			}
+		}
+
+		hash_map<pair<int, int>,pair<int,int>> rotationHash;
+		list<pair<int,int>> rotationList;
+		for(int y=0; y<grayImage.Shape().height; y++)
+		{
+			for(int x=0; x<grayImage.Shape().width; x++)
+			{
+				double newY;
+				double newX;
+				applyHomography(x, y, newX, newY, rotation_h);
+
+				pair<int,int> key;
+				key.first = int(newX+0.5);
+				key.second = int(newY+0.5);
+
+				pair<int, int> val;
+				val.first = x;
+				val.second = y;
+
+				rotationHash.insert(key,val);
+				rotationList.push_back(key);
+			}
+		}
+		double newArr[41*41];
+		for(int x=-20; x<=20; x++)
+		{
+			for(int y=-20; y<=20; y++)
+			{
+				pair<int,int>t;
+			}
+		}
+		i++;
+	}
 }
 
 // Compute Custom descriptors (extra credit)
