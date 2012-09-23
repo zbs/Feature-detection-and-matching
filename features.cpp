@@ -1,5 +1,6 @@
 /* features.cpp */
-
+//computeFeatures ./graf/img1.ppm ./graf/img1_out.ppm 2 1
+//search for PROVISIONAL MEASURES in this code
 #include <assert.h>
 #include <math.h>
 #include <hash_map>
@@ -247,7 +248,6 @@ void ComputeHarrisFeatures(CFloatImage &image, FeatureSet &features)
     CByteImage tmp(harrisImage.Shape());
     convertToByteImage(harrisImage, tmp);
     WriteFile(tmp, "harris.tga");
-    
 
     // TO DO--------------------------------------------------------------------
     //Loop through feature points in harrisMaxImage and fill in information needed for 
@@ -289,52 +289,9 @@ CImageOf<T> GetImageFromMatrix(T *matrix, int width, int height)
 	return dst;
 }
 
-CFloatImage convolveKernelsWithGaussian(double *firstKernel, double *secondKernel, int kernelWidth, int kernelHeight)
+void test()
 {
-	double resultKernel[81];
-	CFloatImage test;
-	int centerX = 2;
-	int centerY = 2;
-
-	for (int offsetY = -4; offsetY <= 4; offsetY++){
-		for (int offsetX = -4; offsetX <= 4; offsetX++){
-			int positionX = offsetX + centerX;
-			int positionY = offsetY + centerY;
-
-			int resultRowMajorPosition = (offsetY+4)*9 + (offsetX+4);
-			int gaussianRowMajorPosition = (positionY)*5 + (positionX);
-
-			if (positionX >= 0 && positionX <= 4 &&
-					positionY >= 0 && positionY <= 4)
-			{
-				resultKernel[resultRowMajorPosition] = gaussian5x5[gaussianRowMajorPosition];
-			}
-			else
-			{
-				resultKernel[resultRowMajorPosition] = 0.;
-			}
-		}
-	}
-
-	CFloatImage baseImage = GetImageFromMatrix(resultKernel, 9, 9);
-	CFloatImage firstKernelImage = GetImageFromMatrix(firstKernel, kernelWidth, kernelHeight);
-	CFloatImage secondKernelImage = GetImageFromMatrix(secondKernel, kernelWidth, kernelHeight);
-	
-	CFloatImage firstResult(baseImage.Shape());
-	Convolve(baseImage, firstResult, firstKernelImage);
-
-	CFloatImage secondResult(baseImage.Shape());
-	Convolve(firstResult, secondResult, secondKernelImage);
-
-	return secondResult;
-
-	/*for (int i = 0; i < 9; i++){
-		for (int j = 0; j < 9; j++){
-			printf("%.4f\t", resultKernel[i*9+j]);
-		}
-		printf("\n");
-	}
-	return test;*/
+	GetImageFromMatrix((double *)sobelX, 3, 3);
 }
 
 //TO DO---------------------------------------------------------------------
@@ -346,33 +303,48 @@ void computeHarrisValues(CFloatImage &srcImage, CFloatImage &harrisImage)
     int w = srcImage.Shape().width;
     int h = srcImage.Shape().height;
 
-	double sum = 0;
-	double mean;
-	double squareSum = 0;
-	double stdDev;
+	CFloatImage partialX(srcImage.Shape());
+	CFloatImage partialY(srcImage.Shape());
 
-	double *cMatrix = new double[w * h];
+	CFloatImage partialXX(srcImage.Shape());
+	CFloatImage partialYY(srcImage.Shape());
+	CFloatImage partialXY(srcImage.Shape());
 
-	CFloatImage AKernel = convolveKernelsWithGaussian((double *)sobelX, (double *)sobelX, 3, 3);
-	CFloatImage BKernel = convolveKernelsWithGaussian((double *)sobelX, (double *)sobelY, 3, 3);
-	CFloatImage CKernel = convolveKernelsWithGaussian((double *)sobelY, (double *)sobelY, 3, 3);
+	CFloatImage gaussianImage = GetImageFromMatrix((float *)gaussian5x5Float, 5, 5);
+
+	Convolve(srcImage, partialX, ConvolveKernel_SobelX);
+	Convolve(srcImage, partialY, ConvolveKernel_SobelY);
+	
+	for (int y = 0; y < h; y++) {
+        for (int x = 0; x < w; x++) {
+			float *xxPixel = &partialXX.Pixel(x, y, 0);
+			float *yyPixel = &partialYY.Pixel(x, y, 0);
+			float *xyPixel = &partialXY.Pixel(x, y, 0);
+			
+			// The 1/8 factor is to do the scaling inherent in sobel filtering
+			*xxPixel = pow((double)(1./8. * 8. * partialX.Pixel(x, y, 0)), 2.);
+			*yyPixel = pow((double)(1./8. * 8. * partialY.Pixel(x, y, 0)), 2.);
+			*xyPixel = pow(1./8. * 8., 2.) * partialX.Pixel(x, y, 0) * partialY.Pixel(x, y, 0);
+		}
+	}
 
 	CFloatImage A(srcImage.Shape());
 	CFloatImage B(srcImage.Shape());
 	CFloatImage C(srcImage.Shape());
 
-	Convolve(srcImage, A, AKernel);
-	Convolve(srcImage, B, BKernel);
-	Convolve(srcImage, C, CKernel);
+	Convolve(partialXX, A, gaussianImage);
+	Convolve(partialXY, B, gaussianImage);
+	Convolve(partialYY, C, gaussianImage);
 
     for (int y = 0; y < h; y++) {
         for (int x = 0; x < w; x++) {
-            
 			double determinant = A.Pixel(x, y, 0) * C.Pixel(x, y, 0) - B.Pixel(x, y, 0)*B.Pixel(x, y, 0);
-			double trace = A.Pixel(x, y, 0) * C.Pixel(x, y, 0);
+			double trace = A.Pixel(x, y, 0) + C.Pixel(x, y, 0);
 			
 			float *pixel = &harrisImage.Pixel(x, y, 0);
-			*pixel = determinant / trace;
+
+			//PROVISIONAL MEASURE -- remove 2. after debugging
+			*pixel = 2.* determinant / trace;
         }
     }
 }

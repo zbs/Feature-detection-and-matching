@@ -1,3 +1,5 @@
+#pragma once
+
 #ifndef FEATURES_H
 #define FEATURES_H
 
@@ -13,7 +15,9 @@ const double gaussian5x5[25] = {0.003663, 0.014652,  0.025641,  0.014652,  0.003
 0.014652, 0.0586081, 0.0952381, 0.0586081, 0.014652, 
 0.003663, 0.014652,  0.025641,  0.014652,  0.003663 };
 
-static float gaussian5x5f[25] = {0.003663, 0.014652,  0.025641,  0.014652,  0.003663, 
+
+//5x5 Gaussian
+const float gaussian5x5Float[25] = {0.003663, 0.014652,  0.025641,  0.014652,  0.003663, 
 0.014652, 0.0586081, 0.0952381, 0.0586081, 0.014652, 
 0.025641,   0.0952381, 0.150183,  0.0952381, 0.025641, 
 0.014652, 0.0586081, 0.0952381, 0.0586081, 0.014652, 
@@ -25,8 +29,7 @@ static float derivativeX3x3[9] = {0.0, 0.0, 0.0,
 
 static float derivativeY3x3[9] = {0.0, 1.0, 0.0,
 0.0, 0.0, 0.0,
-0.0, -1.0, 0.0}
-
+0.0, -1.0, 0.0};
 
 //7x7 Gaussian
 const double gaussian7x7[49] = {0.000896861, 0.003587444, 0.006278027, 0.00896861,  0.006278027, 0.003587444, 0.000896861,
@@ -57,10 +60,10 @@ struct ROCPoint
 	double falseRate;
 };
 
+void test();
+
 template <class T>
 CImageOf<T> GetImageFromMatrix(T *matrix, int width, int height);
-
-CFloatImage convolveKernelsWithGaussian(double *firstKernel, double *secondKernel, int kernelWidth, int kernelHeight);
 
 // Compute harris values of an image.
 void computeHarrisValues(CFloatImage &srcImage,CFloatImage &destImage);
