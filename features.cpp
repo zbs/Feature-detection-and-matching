@@ -466,7 +466,7 @@ void ComputeMOPSDescriptors(CFloatImage &image, FeatureSet &features)
 
     vector<Feature>::iterator i = features.begin();
     while (i != features.end()) {
-        Feature &f = *i;
+       /* Feature &f = *i;
 
 
 		double transformation_h[9] = {1.0, 0.0, -f.x,
@@ -530,7 +530,7 @@ void ComputeMOPSDescriptors(CFloatImage &image, FeatureSet &features)
 			{
 				pair<int,int>t;
 			}
-		}
+		}*/
 		i++;
 	}
 }
