@@ -473,7 +473,7 @@ void ComputeMOPSDescriptors(CFloatImage &image, FeatureSet &features)
 	}
 }
 
-CFloatImage featureToImage(Feature f, int height, int width)
+CFloatImage featureToImage(Feature f, int width, int height)
 {
 	vector<double, std::allocator<double>>::iterator it;
 	float *matrix = new float[width*height];
@@ -487,6 +487,20 @@ CFloatImage featureToImage(Feature f, int height, int width)
 	}
 	CFloatImage img = GetImageFromMatrix(matrix, width, height);
 	return img;
+}
+
+void featuresFromImage(Feature* f, CFloatImage img, int width, int height)
+{
+	vector<double, std::allocator<double>>::iterator it;
+	it = f->data.begin();
+	for(int y=0; y<height; y++)
+	{
+		for(int x=0; x<width; x++)
+		{
+			*it = img.Pixel(x,y,0);
+			it++;
+		}
+	}
 }
 
 // Compute Custom descriptors (extra credit)
