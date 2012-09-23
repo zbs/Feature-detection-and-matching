@@ -270,7 +270,72 @@ void ComputeHarrisFeatures(CFloatImage &image, FeatureSet &features)
     }
 }
 
+template <class T>
+CImageOf<T> GetImageFromMatrix(T *matrix, int width, int height)
+{
+	// Allocate the new image
+    CShape dShape(width, height, 1);
+	CImageOf<T> dst(dShape);
 
+	for (int y = 0; y < height; y++)
+	{
+		for (int x = 0; x < width; x++)
+		{
+			// Allocate the new image
+			T *pixel = &dst.Pixel(x,y,0);
+			*pixel = matrix[y * width + x];
+		}
+	}
+	return dst;
+}
+
+CFloatImage convolveKernelsWithGaussian(double *firstKernel, double *secondKernel, int kernelWidth, int kernelHeight)
+{
+	double resultKernel[81];
+	CFloatImage test;
+	int centerX = 2;
+	int centerY = 2;
+
+	for (int offsetY = -4; offsetY <= 4; offsetY++){
+		for (int offsetX = -4; offsetX <= 4; offsetX++){
+			int positionX = offsetX + centerX;
+			int positionY = offsetY + centerY;
+
+			int resultRowMajorPosition = (offsetY+4)*9 + (offsetX+4);
+			int gaussianRowMajorPosition = (positionY)*5 + (positionX);
+
+			if (positionX >= 0 && positionX <= 4 &&
+					positionY >= 0 && positionY <= 4)
+			{
+				resultKernel[resultRowMajorPosition] = gaussian5x5[gaussianRowMajorPosition];
+			}
+			else
+			{
+				resultKernel[resultRowMajorPosition] = 0.;
+			}
+		}
+	}
+
+	CFloatImage baseImage = GetImageFromMatrix(resultKernel, 9, 9);
+	CFloatImage firstKernelImage = GetImageFromMatrix(firstKernel, kernelWidth, kernelHeight);
+	CFloatImage secondKernelImage = GetImageFromMatrix(secondKernel, kernelWidth, kernelHeight);
+	
+	CFloatImage firstResult(baseImage.Shape());
+	Convolve(baseImage, firstResult, firstKernelImage);
+
+	CFloatImage secondResult(baseImage.Shape());
+	Convolve(firstResult, secondResult, secondKernelImage);
+
+	return secondResult;
+
+	/*for (int i = 0; i < 9; i++){
+		for (int j = 0; j < 9; j++){
+			printf("%.4f\t", resultKernel[i*9+j]);
+		}
+		printf("\n");
+	}
+	return test;*/
+}
 
 //TO DO---------------------------------------------------------------------
 //Loop through the image to compute the harris corner values as described in class
@@ -281,23 +346,33 @@ void computeHarrisValues(CFloatImage &srcImage, CFloatImage &harrisImage)
     int w = srcImage.Shape().width;
     int h = srcImage.Shape().height;
 
-	CFloatImage partialX3x3Knl;
-	CFloatImage partialY3x3Knl;
+	double sum = 0;
+	double mean;
+	double squareSum = 0;
+	double stdDev;
 
-	partialX3x3Knl.ReAllocate(CShape(3,3,1),derivativeX3x3,false,3);
-	partialX3x3Knl.origin[0] = 1;
-	
-	partialY3x3Knl.ReAllocate(CShape(3,3,1),derivativeY3x3,false,3);
-	partialY3x3Knl.origin[0] = 1;
+	double *cMatrix = new double[w * h];
 
+	CFloatImage AKernel = convolveKernelsWithGaussian((double *)sobelX, (double *)sobelX, 3, 3);
+	CFloatImage BKernel = convolveKernelsWithGaussian((double *)sobelX, (double *)sobelY, 3, 3);
+	CFloatImage CKernel = convolveKernelsWithGaussian((double *)sobelY, (double *)sobelY, 3, 3);
 
+	CFloatImage A(srcImage.Shape());
+	CFloatImage B(srcImage.Shape());
+	CFloatImage C(srcImage.Shape());
 
-	for (int y = 0; y < h; y++) {
+	Convolve(srcImage, A, AKernel);
+	Convolve(srcImage, B, BKernel);
+	Convolve(srcImage, C, CKernel);
+
+    for (int y = 0; y < h; y++) {
         for (int x = 0; x < w; x++) {
             
-            // TODO:  Compute the harris score for 'srcImage' at this pixel and store in 'harrisImage'.  See the project
-            //   page for pointers on how to do this
-            
+			double determinant = A.Pixel(x, y, 0) * C.Pixel(x, y, 0) - B.Pixel(x, y, 0)*B.Pixel(x, y, 0);
+			double trace = A.Pixel(x, y, 0) * C.Pixel(x, y, 0);
+			
+			float *pixel = &harrisImage.Pixel(x, y, 0);
+			*pixel = determinant / trace;
         }
     }
 }
@@ -311,7 +386,43 @@ void computeHarrisValues(CFloatImage &srcImage, CFloatImage &harrisImage)
 //    You'll need to find a good threshold to use.
 void computeLocalMaxima(CFloatImage &srcImage,CByteImage &destImage)
 {
-        
+	int width = srcImage.Shape().width;
+	int height = srcImage.Shape().height;
+
+	double mean, stdDev;
+	double sum = 0;
+	double squareSum = 0;
+
+	for (int y = 0; y < height; y++) {
+        for (int x = 0; x < width; x++) {
+			sum += srcImage.Pixel(x, y, 0);
+		}
+    }
+
+	mean = sum / (float)(width * height);
+
+	for (int y = 0; y < height; y++) {
+        for (int x = 0; x < width; x++) {
+            squareSum += pow((srcImage.Pixel(x, y, 0) - mean), 2.);
+        }
+    }
+
+	stdDev = sqrt(squareSum / (float)(width * height - 1));
+
+	for (int y = 0; y < height; y++) {
+        for (int x = 0; x < width; x++) {
+			unsigned char *pixel = &destImage.Pixel(x, y, 0);
+			if (srcImage.Pixel(x, y, 0) >= 2. * stdDev + mean)
+			{
+				*pixel = 1;
+			}
+			else
+			{
+				*pixel = 0;
+			}
+        }
+    }
+
 }
 
 
