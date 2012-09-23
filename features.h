@@ -23,12 +23,30 @@ const double gaussian7x7[49] = {0.000896861, 0.003587444, 0.006278027, 0.0089686
 0.003587444, 0.010762332, 0.023318386, 0.029596413, 0.023318386, 0.010762332, 0.003587444,
 0.000896861, 0.003587444, 0.006278027, 0.00896861,  0.006278027, 0.003587444, 0.000896861};
 
+const double sobelX[9] = 
+{
+	-1./8., 0., 1./8.,
+	-2./8., 0., 2./8.,
+	-1./8., 0., 1./8.
+};
+
+const double sobelY[9] = 
+{
+	-1./8., -2./8., -1./8.,
+	0., 0., 0.,
+	1./8., 2./8., 1./8.
+};
+
 struct ROCPoint
 {
 	double trueRate;
 	double falseRate;
 };
 
+template <class T>
+CImageOf<T> GetImageFromMatrix(T *matrix, int width, int height);
+
+CFloatImage convolveKernelsWithGaussian(double *firstKernel, double *secondKernel, int kernelWidth, int kernelHeight);
 
 // Compute harris values of an image.
 void computeHarrisValues(CFloatImage &srcImage,CFloatImage &destImage);
