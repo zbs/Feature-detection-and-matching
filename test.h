@@ -4,6 +4,8 @@ void testGetFloatFromMatrix();
 
 void testOrientation();
 
+void testGetWindow();
+
 void testRotation();
 
 const float featureMatrix[10*10] = 

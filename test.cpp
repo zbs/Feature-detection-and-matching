@@ -82,3 +82,20 @@ void testRotation()
 			printf("\n");
 		}
 }
+
+void testGetWindow()
+{
+	CFloatImage matrixImage = GetImageFromMatrix((float *)featureMatrix, 10, 10);
+
+	CFloatImage sample5x5 = GetXWindowAroundPixel(matrixImage, 5, 4, 5);
+
+	for (int i = 0; i < 5; i++)
+	{
+		for (int j = 0; j < 5; j++)
+		{
+			printf("%f\t", sample5x5.Pixel(j, i, 0));
+		}
+		printf("\n");
+	}
+
+}

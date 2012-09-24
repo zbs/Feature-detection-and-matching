@@ -1,6 +1,9 @@
 /* features.cpp */
+//
 //computeFeatures ./graf/img1.ppm ./graf/features.f 2 2
 // Get intensity differences on a per-40X40-patch level vs on a entire-image level?
+	//per-patch level
+// 
 // change standard dev to something normal
 //search for PROVISIONAL MEASURES in this code
 #include <assert.h>
@@ -521,6 +524,27 @@ void ComputeSimpleDescriptors(CFloatImage &image, FeatureSet &features)
     }
 }
 
+CFloatImage GetXWindowAroundPixel(CFloatImage srcImage, int x, int y, int size)
+{
+	float *matrix = new float[size * size];
+
+	for(int row=(y-(size-1)/2); row<=(y+(size-1)/2); row++)
+		{
+			for(int col=(x-(size-1)/2);col<=(x+(size-1)/2);col++)
+			{
+				if(row<0 || row>=srcImage.Shape().height || col<0 || col>=srcImage.Shape().width)
+				{
+					matrix[(row-(y-(size-1)/2))*size + (col-(x-(size-1)/2))] = 0.;
+				}
+				else
+				{
+					matrix[(row-(y-(size-1)/2))*size + (col-(x-(size-1)/2))] = srcImage.Pixel(col, row, 0);
+				}
+			}
+		}
+	return GetImageFromMatrix(matrix, size, size);
+}
+
 // Compute MOPs descriptors.
 void ComputeMOPSDescriptors(CFloatImage &image, FeatureSet &features)
 {
@@ -564,14 +588,17 @@ void ComputeMOPSDescriptors(CFloatImage &image, FeatureSet &features)
 		CTransform3x3 translationNegative;
 		CTransform3x3 translationPositive;
 		CTransform3x3 rotation;
+		CTransform3x3 scale;
 
 		translationNegative = translationNegative.Translation(f.x,f.y);
 		translationPositive = translationPositive.Translation(-f.x,-f.y);
-
 		rotation = rotation.Rotation(-f.angleRadians * 180/ PI);
 
+		CTransform3x3 finalTransformation = (translationNegative*rotation*translationPositive).Inverse();
+		//CFloatImage sample61x61Window = 
+		CFloatImage pixelWindow = GetXWindowAroundPixel(grayImage, f.x, f.y, 61);
 
-		WarpGlobal(grayImage, postHomography, translationNegative*rotation*translationPositive, eWarpInterpLinear, eWarpInterpNearest);
+		WarpGlobal(pixelWindow, postHomography, finalTransformation, eWarpInterpLinear, eWarpInterpNearest);
 
 		//now we get the 41x41 box around the feature
 		for(int row=(f.y-20); row<=(f.y+20); row++)
@@ -715,7 +742,7 @@ void ssdMatchFeatures(const FeatureSet &f1, const FeatureSet &f2, vector<Feature
 
         matches[i].id1 = f1[i].id;
         matches[i].id2 = idBest;
-        matches[i].score = dBest;
+        matches[i].score = -dBest;
         totalScore += matches[i].score;
     }
 }
@@ -762,7 +789,7 @@ void ratioMatchFeatures(const FeatureSet &f1, const FeatureSet &f2, vector<Featu
 
 		matches[i].id1 = f1[i].id;
 		matches[i].id2 = idBest;
-		matches[i].score = dBest/dSecondBest;
+		matches[i].score = -dBest/dSecondBest;
 		totalScore += matches[i].score;
 	}
 }
