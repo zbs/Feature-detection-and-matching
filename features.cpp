@@ -436,6 +436,7 @@ void ComputeMOPSDescriptors(CFloatImage &image, FeatureSet &features)
 {
 	CFloatImage grayImage=ConvertToGray(image);
 	CFloatImage postHomography = CFloatImage();
+	CFloatImage gaussianImage = GetImageFromMatrix((float *)gaussian5x5Float, 5, 5);
 
     vector<Feature>::iterator i = features.begin();
     while (i != features.end()) {
@@ -468,7 +469,11 @@ void ComputeMOPSDescriptors(CFloatImage &image, FeatureSet &features)
 		}
 
 		// now we do the subsampling
-
+		CFloatImage img = featureToImage(f, 41, 41);
+		CFloatImage blurredImg(img.Shape());
+		Convolve(img, blurredImg, gaussianImage);
+		featuresFromImage(&f,blurredImg,41,41);
+		
 		i++;
 	}
 }
