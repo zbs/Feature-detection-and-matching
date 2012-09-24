@@ -1,5 +1,6 @@
 /* features.cpp */
 //computeFeatures ./graf/img1.ppm ./graf/img1_out.ppm 2 1
+// Get intensity differences on a per-40X40-patch level vs on a entire-image level?
 //search for PROVISIONAL MEASURES in this code
 #include <assert.h>
 #include <math.h>
@@ -328,7 +329,7 @@ void ComputeHarrisFeatures(CFloatImage &image, FeatureSet &features)
 	CFloatImage partialY(grayImage.Shape());
 
 	GetHarrisComponents(grayImage, A, B, C, &partialX, &partialY);
-
+	int featureCount = 0;
     for (int y=0;y<harrisMaxImage.Shape().height;y++) {
         for (int x=0;x<harrisMaxImage.Shape().width;x++) {
                 
@@ -340,7 +341,7 @@ void ComputeHarrisFeatures(CFloatImage &image, FeatureSet &features)
             // Fill in feature with descriptor data here. 
             Feature f;
 			f.type = 2;
-			f.id += 1;
+			f.id = featureCount++;
 			f.x = x;
 			f.y = y;
 			f.angleRadians = GetCanonicalOrientation(x, y, A, B, C, partialX, partialY);
@@ -509,6 +510,7 @@ void ComputeSimpleDescriptors(CFloatImage &image, FeatureSet &features)
 				}
 			}
 		}
+		printf("feature num %d\n", i->id);
         i++;
     }
 }
@@ -532,6 +534,7 @@ void ComputeMOPSDescriptors(CFloatImage &image, FeatureSet &features)
 		for(int x=0; x<grayWidth; x++)
 		{
 			meanSum += grayImage.Pixel(x,y,0);
+			meanCount++;
 		}
 	}
 
@@ -546,7 +549,7 @@ void ComputeMOPSDescriptors(CFloatImage &image, FeatureSet &features)
 		}
 	}
 
-	// now make this scale invariant
+	// now make this rotation invariant
     vector<Feature>::iterator featureIterator = features.begin();
     while (featureIterator != features.end()) {
 		Feature &f = *featureIterator;
@@ -591,19 +594,19 @@ void ComputeMOPSDescriptors(CFloatImage &image, FeatureSet &features)
 		CFloatImage blurredImg(img.Shape());
 		Convolve(img, blurredImg, gaussianImage);
 		featuresFromImage(&f,blurredImg,imgSize,imgSize);
-		it = f.data.begin();
-
+		
+		int count = 0;
 		for(int y=0; y<imgSize; y++)
 		{
 			for(int x=0; x<imgSize; x++)
 			{
-				if(x ==3 || x==7 || y==3 || y==7)
+				if(x == 3 || x == 7 || y == 3 || y == 7)
 				{
-					f.data.erase(it);
+					f.data.erase(f.data.begin() + count);
 				}
 				else
 				{
-					it++;
+					count++;
 				}
 			}
 		}
@@ -620,19 +623,19 @@ void subsample(Feature* f, int imgSize, CFloatImage gaussianImage)
 	CFloatImage blurredImg(img.Shape());
 	Convolve(img, blurredImg, gaussianImage);
 	featuresFromImage(f,blurredImg,imgSize,imgSize);
-	it = f->data.begin();
 
+	int count = 0;
 	for(int y=0; y<imgSize; y++)
 	{
 		for(int x=0; x<imgSize; x++)
 		{
 			if(x%2 == 0 || y%2 == 0)
 			{
-				f->data.erase(it);
+				f->data.erase(f->data.begin() + count);
 			}
 			else
 			{
-				it++;
+				count++;
 			}
 		}
 	}
@@ -657,13 +660,12 @@ CFloatImage featureToImage(Feature f, int width, int height)
 void featuresFromImage(Feature* f, CFloatImage img, int width, int height)
 {
 	vector<double, std::allocator<double>>::iterator it;
-	it = f->data.begin();
+	f->data.clear();
 	for(int y=0; y<height; y++)
 	{
 		for(int x=0; x<width; x++)
 		{
-			*it = img.Pixel(x,y,0);
-			it++;
+			f->data.push_back(img.Pixel(x,y,0));
 		}
 	}
 }
