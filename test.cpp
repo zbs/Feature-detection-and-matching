@@ -44,6 +44,9 @@ void testOrientation()
 	CFloatImage B = GetImageFromMatrix(Bm, 1, 1);
 	CFloatImage C = GetImageFromMatrix(Cm, 1, 1);
 
-	double angle = GetCanonicalOrientation(0, 0, A, B, C);
+	CFloatImage partialX = GetImageFromMatrix(Bm, 1, 1);
+	CFloatImage partialY = GetImageFromMatrix(Bm, 1, 1);
+
+	double angle = GetCanonicalOrientation(0, 0, A, B, C, partialX, partialY);
 	printf("Angle: %f\n", angle);
 }

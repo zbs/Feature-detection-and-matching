@@ -225,14 +225,24 @@ void dummyComputeFeatures(CFloatImage &image, FeatureSet &features) {
         }
     }
 }
-
-void GetHarrisComponents(CFloatImage &srcImage, CFloatImage &A, CFloatImage &B, CFloatImage &C)
+void GetHarrisComponents(CFloatImage &srcImage, CFloatImage &A, CFloatImage &B, CFloatImage &C, CFloatImage *partialX, CFloatImage *partialY)
 {
 	int w = srcImage.Shape().width;
     int h = srcImage.Shape().height;
 
-	CFloatImage partialX(srcImage.Shape());
-	CFloatImage partialY(srcImage.Shape());
+	CFloatImage *partialXPtr;
+	CFloatImage *partialYPtr;
+
+	if (partialX != nullptr && partialY != nullptr)
+	{
+		partialXPtr = partialX;
+		partialYPtr = partialY;
+	}
+	else
+	{
+		partialXPtr = new CFloatImage(srcImage.Shape());
+		partialYPtr = new CFloatImage(srcImage.Shape());
+	}
 
 	CFloatImage partialXX(srcImage.Shape());
 	CFloatImage partialYY(srcImage.Shape());
@@ -240,8 +250,8 @@ void GetHarrisComponents(CFloatImage &srcImage, CFloatImage &A, CFloatImage &B, 
 
 	CFloatImage gaussianImage = GetImageFromMatrix((float *)gaussian5x5Float, 5, 5);
 
-	Convolve(srcImage, partialX, ConvolveKernel_SobelX);
-	Convolve(srcImage, partialY, ConvolveKernel_SobelY);
+	Convolve(srcImage, *partialXPtr, ConvolveKernel_SobelX);
+	Convolve(srcImage, *partialYPtr, ConvolveKernel_SobelY);
 	
 	for (int y = 0; y < h; y++) {
         for (int x = 0; x < w; x++) {
@@ -250,9 +260,9 @@ void GetHarrisComponents(CFloatImage &srcImage, CFloatImage &A, CFloatImage &B, 
 			float *xyPixel = &partialXY.Pixel(x, y, 0);
 			
 			// The 1/8 factor is to do the scaling inherent in sobel filtering
-			*xxPixel = pow((double)(1./8. * 8. * partialX.Pixel(x, y, 0)), 2.);
-			*yyPixel = pow((double)(1./8. * 8. * partialY.Pixel(x, y, 0)), 2.);
-			*xyPixel = pow(1./8. * 8., 2.) * partialX.Pixel(x, y, 0) * partialY.Pixel(x, y, 0);
+			*xxPixel = pow((double)(1./8. * partialXPtr->Pixel(x, y, 0)), 2.);
+			*yyPixel = pow((double)(1./8. * partialYPtr->Pixel(x, y, 0)), 2.);
+			*xyPixel = pow(1./8., 2.) * partialXPtr->Pixel(x, y, 0) * partialYPtr->Pixel(x, y, 0);
 		}
 	}
 
@@ -261,7 +271,7 @@ void GetHarrisComponents(CFloatImage &srcImage, CFloatImage &A, CFloatImage &B, 
 	Convolve(partialYY, C, gaussianImage);
 }
 
-double GetCanonicalOrientation(int x, int y, CFloatImage A, CFloatImage B, CFloatImage C)
+double GetCanonicalOrientation(int x, int y, CFloatImage A, CFloatImage B, CFloatImage C, CFloatImage partialX, CFloatImage partialY)
 {
 	float aPixel = A.Pixel(x, y, 0);	
 	float bPixel = B.Pixel(x, y, 0);	
@@ -271,9 +281,17 @@ double GetCanonicalOrientation(int x, int y, CFloatImage A, CFloatImage B, CFloa
 	double b = -(aPixel+cPixel);
 	double c = (aPixel * cPixel - pow((double)bPixel, 2.));
 
-	double lambda = (- b + sqrt(pow((double)b, 2.) - 4*aPixel*cPixel)) / (2*aPixel);
+	double lambda = (- b + sqrt(pow((double)b, 2.) - 4.*a*c)) / (2.*a);
 
-	return atan((lambda - aPixel) / bPixel);
+	double yComponent = aPixel - lambda - bPixel;
+	double xComponent = cPixel - lambda - bPixel;
+
+	if (xComponent == 0.)
+	{
+		return (partialY.Pixel(x, y, 0) > 0)? PI/2. : -PI/2.;
+	}
+
+	return (partialX.Pixel(x, y, 0) > 0)? atan(yComponent/xComponent) : atan(yComponent/xComponent) + PI;
 }
 void ComputeHarrisFeatures(CFloatImage &image, FeatureSet &features)
 {
@@ -306,7 +324,10 @@ void ComputeHarrisFeatures(CFloatImage &image, FeatureSet &features)
 	CFloatImage B(grayImage.Shape());
 	CFloatImage C(grayImage.Shape());
 
-	GetHarrisComponents(grayImage, A, B, C);
+	CFloatImage partialX(grayImage.Shape());
+	CFloatImage partialY(grayImage.Shape());
+
+	GetHarrisComponents(grayImage, A, B, C, &partialX, &partialY);
 
     for (int y=0;y<harrisMaxImage.Shape().height;y++) {
         for (int x=0;x<harrisMaxImage.Shape().width;x++) {
@@ -322,9 +343,7 @@ void ComputeHarrisFeatures(CFloatImage &image, FeatureSet &features)
 			f.id += 1;
 			f.x = x;
 			f.y = y;
-			f.angleRadians = 0.;
-			//GetCanonicalOrientation(x, y, A, B, C); // default value
-
+			f.angleRadians = GetCanonicalOrientation(x, y, A, B, C, partialX, partialY);
 			// Add the feature to the list of features
             features.push_back(f);
         }
@@ -377,13 +396,42 @@ void computeHarrisValues(CFloatImage &srcImage, CFloatImage &harrisImage)
 			
 			float *pixel = &harrisImage.Pixel(x, y, 0);
 
-			//PROVISIONAL MEASURE -- remove 2. after debugging
-			*pixel = 2.* determinant / trace;
+			*pixel = determinant / trace;
         }
     }
 }
 
+bool isLocalMax(CFloatImage srcImage, int x, int y)
+{
+	int width = srcImage.Shape().width;
+	int height = srcImage.Shape().height;
+	float centerPixel = srcImage.Pixel(x, y, 0);
 
+	for (int row = 0; y < 3; y++)
+	{
+		for (int col = 0; x < 3; x++)
+		{
+			int xOffset = x - 1 + col;
+			int yOffset = y - 1 + row;
+
+			float pixelAtOffset;
+			if (xOffset < 0 || yOffset < 0 || xOffset >= width || yOffset >= height)
+			{
+				pixelAtOffset = 0.;
+			}
+			else
+			{
+				pixelAtOffset = srcImage.Pixel(xOffset, yOffset, 0);
+			}
+			if (pixelAtOffset >= centerPixel)
+			{
+				return false;
+			}
+		}
+	}
+
+	return true;
+}
 
 // TO DO---------------------------------------------------------------------
 // Loop through the harrisImage to threshold and compute the local maxima in a neighborhood
@@ -414,12 +462,13 @@ void computeLocalMaxima(CFloatImage &srcImage,CByteImage &destImage)
     }
 
 	stdDev = sqrt(squareSum / (float)(width * height - 1));
-
+	int count = 0;
 	for (int y = 0; y < height; y++) {
         for (int x = 0; x < width; x++) {
 			unsigned char *pixel = &destImage.Pixel(x, y, 0);
-			if (srcImage.Pixel(x, y, 0) >= 2. * stdDev + mean)
+			if (srcImage.Pixel(x, y, 0) >= 10. * stdDev + mean && isLocalMax(srcImage, x, y))
 			{
+				count++;
 				*pixel = 1;
 			}
 			else
@@ -428,7 +477,6 @@ void computeLocalMaxima(CFloatImage &srcImage,CByteImage &destImage)
 			}
         }
     }
-
 }
 
 
@@ -506,6 +554,7 @@ void ComputeMOPSDescriptors(CFloatImage &image, FeatureSet &features)
 		CTransform3x3 translationNegative;
 		CTransform3x3 translationPositive;
 		CTransform3x3 rotation;
+		// Shouldn't the translation be -f.x/2 and -f.y/2?
 		translationNegative = translationNegative.Translation(-f.x,-f.y);
 		translationPositive = translationPositive.Translation(f.x,f.y);
 		rotation = rotation.Rotation(-f.angleRadians);

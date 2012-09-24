@@ -65,9 +65,11 @@ void test();
 template <class T>
 CImageOf<T> GetImageFromMatrix(T *matrix, int width, int height);
 
-void GetHarrisComponents(CFloatImage &srcImage, CFloatImage &A, CFloatImage &B, CFloatImage &C);
+bool isLocalMax(CFloatImage srcImage, int x, int y);
 
-double GetCanonicalOrientation(int x, int y, CFloatImage A, CFloatImage B, CFloatImage C);
+void GetHarrisComponents(CFloatImage &srcImage, CFloatImage &A, CFloatImage &B, CFloatImage &C, CFloatImage *partialX=nullptr, CFloatImage *partialY=nullptr);
+
+double GetCanonicalOrientation(int x, int y, CFloatImage A, CFloatImage B, CFloatImage C, CFloatImage partialX, CFloatImage partialY);
 
 // Compute harris values of an image.
 void computeHarrisValues(CFloatImage &srcImage,CFloatImage &destImage);
