@@ -3,6 +3,7 @@
 //search for PROVISIONAL MEASURES in this code
 #include <assert.h>
 #include <math.h>
+#include <hash_map>
 #include <FL/Fl.H>
 #include <FL/Fl_Image.H>
 #include "features.h"
@@ -435,10 +436,26 @@ void ComputeSimpleDescriptors(CFloatImage &image, FeatureSet &features)
     vector<Feature>::iterator i = features.begin();
     while (i != features.end()) {
         Feature &f = *i;
+		//these fields should already be set in the computeFeatures function
+		int x = f.x;
+		int y = f.y;
 
-        //TO DO---------------------------------------------------------------------
-        // The descriptor is a 5x5 window of intensities sampled centered on the feature point.
-
+		// now get the 5x5 window surrounding the feature and store them in the features
+		for(int row=(y-2); row<=(y+2); row++)
+		{
+			for(int col=(x-2); col<=(x+2); col++)
+			{
+				//if the pixel is out of bounds, assume it is black
+				if(row<0 || row>=grayImage.Shape().height || col<0 || col>=grayImage.Shape().width)
+				{
+					f.data.push_back(0.0);
+				}
+				else
+				{
+					f.data.push_back(grayImage.Pixel(col,row,0));
+				}
+			}
+		}
         i++;
     }
 }
@@ -446,7 +463,128 @@ void ComputeSimpleDescriptors(CFloatImage &image, FeatureSet &features)
 // Compute MOPs descriptors.
 void ComputeMOPSDescriptors(CFloatImage &image, FeatureSet &features)
 {
+	CFloatImage grayImage=ConvertToGray(image);
+	CFloatImage postHomography = CFloatImage();
+	CFloatImage gaussianImage = GetImageFromMatrix((float *)gaussian5x5Float, 5, 5);
 
+    vector<Feature>::iterator featureIterator = features.begin();
+    while (featureIterator != features.end()) {
+		Feature &f = *featureIterator;
+
+		CTransform3x3 translationNegative;
+		CTransform3x3 translationPositive;
+		CTransform3x3 rotation;
+		translationNegative = translationNegative.Translation(-f.x,-f.y);
+		translationPositive = translationPositive.Translation(f.x,f.y);
+		rotation = rotation.Rotation(-f.angleRadians);
+
+
+		WarpGlobal(grayImage,postHomography, translationPositive*rotation*translationNegative, eWarpInterpLinear, 1.0f);
+
+		//now we get the 41x41 box around the feature
+		for(int row=(f.y-20); row<=(f.y+20); row++)
+		{
+			for(int col=(f.x-20);col<=(f.x+20);col++)
+			{
+				if(row<0 || row>=grayImage.Shape().height || col<0 || col>=grayImage.Shape().width)
+				{
+					f.data.push_back(0.0);
+				}
+				else
+				{
+					f.data.push_back(grayImage.Pixel(col,row,0));
+				}
+			}
+		}
+
+		// now we do the subsampling first round to reduce to a 20x20
+		int imgSize = 41;
+		subsample(&f, imgSize, gaussianImage);
+
+		//second round of subsampling to get it to a 10x10
+		imgSize = 20;
+		subsample(&f, imgSize, gaussianImage);	
+
+		vector<double, std::allocator<double>>::iterator it;
+		CFloatImage img = featureToImage(f, imgSize, imgSize);
+		CFloatImage blurredImg(img.Shape());
+		Convolve(img, blurredImg, gaussianImage);
+		featuresFromImage(&f,blurredImg,imgSize,imgSize);
+		it = f.data.begin();
+
+		for(int y=0; y<imgSize; y++)
+		{
+			for(int x=0; x<imgSize; x++)
+			{
+				if(x ==3 || x==7 || y==3 || y==7)
+				{
+					f.data.erase(it);
+				}
+				else
+				{
+					it++;
+				}
+			}
+		}
+
+		featureIterator++;
+
+	}
+}
+
+void subsample(Feature* f, int imgSize, CFloatImage gaussianImage)
+{
+	vector<double, std::allocator<double>>::iterator it;
+	CFloatImage img = featureToImage(*f, imgSize, imgSize);
+	CFloatImage blurredImg(img.Shape());
+	Convolve(img, blurredImg, gaussianImage);
+	featuresFromImage(f,blurredImg,imgSize,imgSize);
+	it = f->data.begin();
+
+	for(int y=0; y<imgSize; y++)
+	{
+		for(int x=0; x<imgSize; x++)
+		{
+			if(x%2 == 0 || y%2 == 0)
+			{
+				f->data.erase(it);
+			}
+			else
+			{
+				it++;
+			}
+		}
+	}
+}
+
+CFloatImage featureToImage(Feature f, int width, int height)
+{
+	vector<double, std::allocator<double>>::iterator it;
+	float *matrix = new float[width*height];
+	int matIndex = 0;
+	it = f.data.begin();
+	while (it != f.data.end()) {
+		double freq = *it;
+		matrix[matIndex] = freq;
+		matIndex++;
+		it++;
+	}
+	CFloatImage img = GetImageFromMatrix(matrix, width, height);
+	return img;
+}
+
+void featuresFromImage(Feature* f, CFloatImage img, int width, int height)
+{
+	vector<double, std::allocator<double>>::iterator it;
+	it = f->data.begin();
+	for(int y=0; y<height; y++)
+	{
+		for(int x=0; x<width; x++)
+		{
+			*it = img.Pixel(x,y,0);
+			it++;
+		}
+	}
 }
 
 // Compute Custom descriptors (extra credit)
