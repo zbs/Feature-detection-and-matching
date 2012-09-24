@@ -102,6 +102,12 @@ void ComputeSimpleDescriptors(CFloatImage &image, FeatureSet &features);
 // Compute MOPS descriptors
 void ComputeMOPSDescriptors(CFloatImage &image, FeatureSet &features);
 
+void subsample(Feature* f, int imgSize, CFloatImage gaussianImage);
+
+CFloatImage featureToImage(Feature f, int width, int height);
+
+void featuresFromImage(Feature* f, CFloatImage img, int width, int height);
+
 // Compute Custom descriptors
 void ComputeCustomDescriptors(CFloatImage &image, FeatureSet &features);
 
