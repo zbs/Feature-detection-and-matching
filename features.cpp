@@ -467,6 +467,33 @@ void ComputeMOPSDescriptors(CFloatImage &image, FeatureSet &features)
 	CFloatImage postHomography = CFloatImage();
 	CFloatImage gaussianImage = GetImageFromMatrix((float *)gaussian5x5Float, 5, 5);
 
+	//first make the image invariant to changes in illumination by subtracting off the mean
+	int grayHeight = grayImage.Shape().height;
+	int grayWidth = grayImage.Shape().width;
+
+	// find the mean
+	double meanCount = 0;
+	double meanSum = 0;
+	for(int y=0; y<grayHeight; y++)
+	{
+		for(int x=0; x<grayWidth; x++)
+		{
+			meanSum += grayImage.Pixel(x,y,0);
+		}
+	}
+
+	double mean = (meanSum/meanCount);
+
+	// subtract the mean, making these features intensity invariant
+	for(int y=0; y<grayHeight; y++)
+	{
+		for(int x=0; x<grayWidth; x++)
+		{
+			grayImage.Pixel(x,y,0) = grayImage.Pixel(x,y,0) - mean;
+		}
+	}
+
+	// now make this scale invariant
     vector<Feature>::iterator featureIterator = features.begin();
     while (featureIterator != features.end()) {
 		Feature &f = *featureIterator;
