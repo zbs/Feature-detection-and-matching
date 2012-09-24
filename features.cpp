@@ -717,8 +717,44 @@ void ssdMatchFeatures(const FeatureSet &f1, const FeatureSet &f2, vector<Feature
 // the second image.  (See class notes for more information, and the sshMatchFeatures function above as a reference)
 void ratioMatchFeatures(const FeatureSet &f1, const FeatureSet &f2, vector<FeatureMatch> &matches, double &totalScore) 
 {
-        
-    
+	int m = f1.size();
+	int n = f2.size();
+
+	matches.resize(m);
+	totalScore = 0;
+
+	double d;
+	double dBest;
+	double dSecondBest;
+	int idBest;
+	int idSecondBest;
+
+	for (int i=0; i<m; i++) {
+		dBest = 1e100;
+	    idBest = 0;
+		dSecondBest = 1e100;
+		idSecondBest = 0;
+		for (int j=0; j<n; j++) {
+			d = distanceSSD(f1[i].data, f2[j].data);
+
+			if (d < dBest) {
+				dSecondBest = dBest;
+				idSecondBest = idBest;
+				dBest = d;
+				idBest = f2[j].id;
+			}
+			else if(d >= dBest && d<dSecondBest)
+			{
+				dSecondBest = d;
+				idSecondBest = f2[j].id;
+			}
+		}
+
+		matches[i].id1 = f1[i].id;
+		matches[i].id2 = idBest;
+		matches[i].score = dBest/dSecondBest;
+		totalScore += matches[i].score;
+	}
 }
 
 
