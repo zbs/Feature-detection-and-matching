@@ -1,5 +1,5 @@
 /* features.cpp */
-//computeFeatures ./graf/img1.ppm ./graf/features.f 2 2
+//computeFeatures ./graf/img1.ppm ./graf/img1_out.ppm 2 1
 // Get intensity differences on a per-40X40-patch level vs on a entire-image level?
 // change standard dev to something normal
 //search for PROVISIONAL MEASURES in this code
@@ -468,7 +468,7 @@ void computeLocalMaxima(CFloatImage &srcImage,CByteImage &destImage)
 	for (int y = 0; y < height; y++) {
         for (int x = 0; x < width; x++) {
 			unsigned char *pixel = &destImage.Pixel(x, y, 0);
-			if (srcImage.Pixel(x, y, 0) >= 5. * stdDev + mean && isLocalMax(srcImage, x, y))
+			if (srcImage.Pixel(x, y, 0) >= 10. * stdDev + mean && isLocalMax(srcImage, x, y))
 			{
 				count++;
 				*pixel = 1;
