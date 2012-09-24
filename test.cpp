@@ -24,7 +24,26 @@ void testGetFloatFromMatrix()
 	}
 
 	if (areSame)
-		printf("Same");
+		printf("Same\n");
 	else
-		printf("Not the same");
+		printf("Not the same\n");
+}
+
+void testOrientation()
+{
+	float Am[] = {
+		2.
+	};
+	float Bm[] = {
+		1.
+	};
+	float Cm[] = {
+		2.
+	};
+	CFloatImage A = GetImageFromMatrix(Am, 1, 1);
+	CFloatImage B = GetImageFromMatrix(Bm, 1, 1);
+	CFloatImage C = GetImageFromMatrix(Cm, 1, 1);
+
+	double angle = GetCanonicalOrientation(0, 0, A, B, C);
+	printf("Angle: %f\n", angle);
 }

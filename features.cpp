@@ -261,14 +261,19 @@ void GetHarrisComponents(CFloatImage &srcImage, CFloatImage &A, CFloatImage &B, 
 	Convolve(partialYY, C, gaussianImage);
 }
 
-double GetCanonicalOrientation(CFloatImage &srcImage, int x, int y, CFloatImage A, CFloatImage B, CFloatImage C)
+double GetCanonicalOrientation(int x, int y, CFloatImage A, CFloatImage B, CFloatImage C)
 {
 	float aPixel = A.Pixel(x, y, 0);	
 	float bPixel = B.Pixel(x, y, 0);	
-	float CPixel = C.Pixel(x, y, 0);	
+	float cPixel = C.Pixel(x, y, 0);	
 
+	double a = 1;
+	double b = -(aPixel+cPixel);
+	double c = (aPixel * cPixel - pow((double)bPixel, 2.));
 
-	return 0.;
+	double lambda = (- b + sqrt(pow((double)b, 2.) - 4*aPixel*cPixel)) / (2*aPixel);
+
+	return atan((lambda - aPixel) / bPixel);
 }
 void ComputeHarrisFeatures(CFloatImage &image, FeatureSet &features)
 {
@@ -318,7 +323,7 @@ void ComputeHarrisFeatures(CFloatImage &image, FeatureSet &features)
 			f.x = x;
 			f.y = y;
 			f.angleRadians = 0.;
-			//GetCanonicalOrientation(grayImage, x, y, A, B, C); // default value
+			//GetCanonicalOrientation(x, y, A, B, C); // default value
 
 			// Add the feature to the list of features
             features.push_back(f);

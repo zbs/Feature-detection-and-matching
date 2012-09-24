@@ -1,1 +1,3 @@
 void testGetFloatFromMatrix();
+
+void testOrientation();
