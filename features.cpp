@@ -1,6 +1,7 @@
 /* features.cpp */
 //computeFeatures ./graf/img1.ppm ./graf/img1_out.ppm 2 1
 // Get intensity differences on a per-40X40-patch level vs on a entire-image level?
+// change standard dev to something normal
 //search for PROVISIONAL MEASURES in this code
 #include <assert.h>
 #include <math.h>
@@ -526,28 +527,29 @@ void ComputeMOPSDescriptors(CFloatImage &image, FeatureSet &features)
 	int grayHeight = grayImage.Shape().height;
 	int grayWidth = grayImage.Shape().width;
 
+	// RESOLVE whether you find difference on per-patch or per-image level
 	// find the mean
-	double meanCount = 0;
-	double meanSum = 0;
-	for(int y=0; y<grayHeight; y++)
-	{
-		for(int x=0; x<grayWidth; x++)
-		{
-			meanSum += grayImage.Pixel(x,y,0);
-			meanCount++;
-		}
-	}
+	//double meanCount = 0;
+	//double meanSum = 0;
+	//for(int y=0; y<grayHeight; y++)
+	//{
+	//	for(int x=0; x<grayWidth; x++)
+	//	{
+	//		meanSum += grayImage.Pixel(x,y,0);
+	//		meanCount++;
+	//	}
+	//}
 
-	double mean = (meanSum/meanCount);
+	//double mean = (meanSum/meanCount);
 
-	// subtract the mean, making these features intensity invariant
-	for(int y=0; y<grayHeight; y++)
-	{
-		for(int x=0; x<grayWidth; x++)
-		{
-			grayImage.Pixel(x,y,0) = grayImage.Pixel(x,y,0) - mean;
-		}
-	}
+	//// subtract the mean, making these features intensity invariant
+	//for(int y=0; y<grayHeight; y++)
+	//{
+	//	for(int x=0; x<grayWidth; x++)
+	//	{
+	//		grayImage.Pixel(x,y,0) = grayImage.Pixel(x,y,0) - mean;
+	//	}
+	//}
 
 	// now make this rotation invariant
     vector<Feature>::iterator featureIterator = features.begin();
@@ -557,26 +559,27 @@ void ComputeMOPSDescriptors(CFloatImage &image, FeatureSet &features)
 		CTransform3x3 translationNegative;
 		CTransform3x3 translationPositive;
 		CTransform3x3 rotation;
-		// Shouldn't the translation be -f.x/2 and -f.y/2?
-		translationNegative = translationNegative.Translation(-f.x,-f.y);
-		translationPositive = translationPositive.Translation(f.x,f.y);
-		rotation = rotation.Rotation(-f.angleRadians);
+
+		translationNegative = translationNegative.Translation(f.x,f.y);
+		translationPositive = translationPositive.Translation(-f.x,-f.y);
+
+		rotation = rotation.Rotation(-f.angleRadians * 180/ PI);
 
 
-		WarpGlobal(grayImage,postHomography, translationPositive*rotation*translationNegative, eWarpInterpLinear, 1.0f);
+		WarpGlobal(grayImage, postHomography, translationNegative*rotation*translationPositive, eWarpInterpLinear, eWarpInterpNearest);
 
 		//now we get the 41x41 box around the feature
 		for(int row=(f.y-20); row<=(f.y+20); row++)
 		{
 			for(int col=(f.x-20);col<=(f.x+20);col++)
 			{
-				if(row<0 || row>=grayImage.Shape().height || col<0 || col>=grayImage.Shape().width)
+				if(row<0 || row>=postHomography.Shape().height || col<0 || col>=postHomography.Shape().width)
 				{
 					f.data.push_back(0.0);
 				}
 				else
 				{
-					f.data.push_back(grayImage.Pixel(col,row,0));
+					f.data.push_back(postHomography.Pixel(col,row,0));
 				}
 			}
 		}
@@ -589,7 +592,7 @@ void ComputeMOPSDescriptors(CFloatImage &image, FeatureSet &features)
 		imgSize = 20;
 		subsample(&f, imgSize, gaussianImage);	
 
-		vector<double, std::allocator<double>>::iterator it;
+		imgSize = 10;
 		CFloatImage img = featureToImage(f, imgSize, imgSize);
 		CFloatImage blurredImg(img.Shape());
 		Convolve(img, blurredImg, gaussianImage);

@@ -4,6 +4,7 @@
 #include <FL/Fl_Image.H>
 #include "features.h"
 #include "ImageLib/FileIO.h"
+#include "test.h"
 
 void testGetFloatFromMatrix()
 {
@@ -49,4 +50,35 @@ void testOrientation()
 
 	double angle = GetCanonicalOrientation(0, 0, A, B, C, partialX, partialY);
 	printf("Angle: %f\n", angle);
+}
+
+void testRotation()
+{
+	
+		CFloatImage matrixImage = GetImageFromMatrix((float *)featureMatrix, 10, 10);
+		CTransform3x3 translationNegative;
+		CTransform3x3 translationPositive;
+		CTransform3x3 rotation;
+		CFloatImage postHomography;
+
+		Feature f;
+		f.x = 6;
+		f.y = 5;
+		f.angleRadians = PI;
+
+		translationNegative = translationNegative.Translation(f.x,f.y);
+		translationPositive = translationPositive.Translation(-f.x,-f.y);
+
+		rotation = rotation.Rotation(-f.angleRadians * 180/ PI);
+
+
+		WarpGlobal(matrixImage, postHomography, translationNegative*rotation*translationPositive, eWarpInterpLinear, eWarpInterpNearest);
+		for (int i = 0; i < postHomography.Shape().height; i++)
+		{
+			for (int j = 0; j < postHomography.Shape().width; j++)
+			{
+				printf("%.0f\t", postHomography.Pixel(j, i, 0));
+			}
+			printf("\n");
+		}
 }
