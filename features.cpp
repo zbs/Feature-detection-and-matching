@@ -225,6 +225,50 @@ void dummyComputeFeatures(CFloatImage &image, FeatureSet &features) {
     }
 }
 
+void GetHarrisComponents(CFloatImage &srcImage, CFloatImage &A, CFloatImage &B, CFloatImage &C)
+{
+	int w = srcImage.Shape().width;
+    int h = srcImage.Shape().height;
+
+	CFloatImage partialX(srcImage.Shape());
+	CFloatImage partialY(srcImage.Shape());
+
+	CFloatImage partialXX(srcImage.Shape());
+	CFloatImage partialYY(srcImage.Shape());
+	CFloatImage partialXY(srcImage.Shape());
+
+	CFloatImage gaussianImage = GetImageFromMatrix((float *)gaussian5x5Float, 5, 5);
+
+	Convolve(srcImage, partialX, ConvolveKernel_SobelX);
+	Convolve(srcImage, partialY, ConvolveKernel_SobelY);
+	
+	for (int y = 0; y < h; y++) {
+        for (int x = 0; x < w; x++) {
+			float *xxPixel = &partialXX.Pixel(x, y, 0);
+			float *yyPixel = &partialYY.Pixel(x, y, 0);
+			float *xyPixel = &partialXY.Pixel(x, y, 0);
+			
+			// The 1/8 factor is to do the scaling inherent in sobel filtering
+			*xxPixel = pow((double)(1./8. * 8. * partialX.Pixel(x, y, 0)), 2.);
+			*yyPixel = pow((double)(1./8. * 8. * partialY.Pixel(x, y, 0)), 2.);
+			*xyPixel = pow(1./8. * 8., 2.) * partialX.Pixel(x, y, 0) * partialY.Pixel(x, y, 0);
+		}
+	}
+
+	Convolve(partialXX, A, gaussianImage);
+	Convolve(partialXY, B, gaussianImage);
+	Convolve(partialYY, C, gaussianImage);
+}
+
+double GetCanonicalOrientation(CFloatImage &srcImage, int x, int y, CFloatImage A, CFloatImage B, CFloatImage C)
+{
+	float aPixel = A.Pixel(x, y, 0);	
+	float bPixel = B.Pixel(x, y, 0);	
+	float CPixel = C.Pixel(x, y, 0);	
+
+
+	return 0.;
+}
 void ComputeHarrisFeatures(CFloatImage &image, FeatureSet &features)
 {
     //Create grayscale image used for Harris detection
@@ -252,18 +296,30 @@ void ComputeHarrisFeatures(CFloatImage &image, FeatureSet &features)
     //Loop through feature points in harrisMaxImage and fill in information needed for 
     //descriptor computation for each point above a threshold. We fill in id, type, 
     //x, y, and angle.
+	CFloatImage A(grayImage.Shape());
+	CFloatImage B(grayImage.Shape());
+	CFloatImage C(grayImage.Shape());
+
+	GetHarrisComponents(grayImage, A, B, C);
+
     for (int y=0;y<harrisMaxImage.Shape().height;y++) {
         for (int x=0;x<harrisMaxImage.Shape().width;x++) {
                 
             // Skip over non-maxima
             if (harrisMaxImage.Pixel(x, y, 0) == 0)
-		continue;
+				continue;
 
             //TO DO---------------------------------------------------------------------
             // Fill in feature with descriptor data here. 
             Feature f;
+			f.type = 2;
+			f.id += 1;
+			f.x = x;
+			f.y = y;
+			f.angleRadians = 0.;
+			//GetCanonicalOrientation(grayImage, x, y, A, B, C); // default value
 
-            // Add the feature to the list of features
+			// Add the feature to the list of features
             features.push_back(f);
         }
     }
@@ -299,45 +355,18 @@ void test()
 // harrisImage:  populate the harris values per pixel in this image
 void computeHarrisValues(CFloatImage &srcImage, CFloatImage &harrisImage)
 {
-    int w = srcImage.Shape().width;
-    int h = srcImage.Shape().height;
-
-	CFloatImage partialX(srcImage.Shape());
-	CFloatImage partialY(srcImage.Shape());
-
-	CFloatImage partialXX(srcImage.Shape());
-	CFloatImage partialYY(srcImage.Shape());
-	CFloatImage partialXY(srcImage.Shape());
-
-	CFloatImage gaussianImage = GetImageFromMatrix((float *)gaussian5x5Float, 5, 5);
-
-	Convolve(srcImage, partialX, ConvolveKernel_SobelX);
-	Convolve(srcImage, partialY, ConvolveKernel_SobelY);
-	
-	for (int y = 0; y < h; y++) {
-        for (int x = 0; x < w; x++) {
-			float *xxPixel = &partialXX.Pixel(x, y, 0);
-			float *yyPixel = &partialYY.Pixel(x, y, 0);
-			float *xyPixel = &partialXY.Pixel(x, y, 0);
-			
-			// The 1/8 factor is to do the scaling inherent in sobel filtering
-			*xxPixel = pow((double)(1./8. * 8. * partialX.Pixel(x, y, 0)), 2.);
-			*yyPixel = pow((double)(1./8. * 8. * partialY.Pixel(x, y, 0)), 2.);
-			*xyPixel = pow(1./8. * 8., 2.) * partialX.Pixel(x, y, 0) * partialY.Pixel(x, y, 0);
-		}
-	}
+	int h = srcImage.Shape().height;
+	int w = srcImage.Shape().width;
 
 	CFloatImage A(srcImage.Shape());
 	CFloatImage B(srcImage.Shape());
 	CFloatImage C(srcImage.Shape());
 
-	Convolve(partialXX, A, gaussianImage);
-	Convolve(partialXY, B, gaussianImage);
-	Convolve(partialYY, C, gaussianImage);
+	GetHarrisComponents(srcImage, A, B, C);
 
     for (int y = 0; y < h; y++) {
         for (int x = 0; x < w; x++) {
-			double determinant = A.Pixel(x, y, 0) * C.Pixel(x, y, 0) - B.Pixel(x, y, 0)*B.Pixel(x, y, 0);
+			double determinant = A.Pixel(x, y, 0) * C.Pixel(x, y, 0) - B.Pixel(x, y, 0)* B.Pixel(x, y, 0);
 			double trace = A.Pixel(x, y, 0) + C.Pixel(x, y, 0);
 			
 			float *pixel = &harrisImage.Pixel(x, y, 0);
@@ -457,7 +486,7 @@ void ssdMatchFeatures(const FeatureSet &f1, const FeatureSet &f2, vector<Feature
 
         matches[i].id1 = f1[i].id;
         matches[i].id2 = idBest;
-        matches[i].score = -dBest;
+        matches[i].score = dBest;
         totalScore += matches[i].score;
     }
 }
