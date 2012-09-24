@@ -262,9 +262,9 @@ void GetHarrisComponents(CFloatImage &srcImage, CFloatImage &A, CFloatImage &B, 
 			float *xyPixel = &partialXY.Pixel(x, y, 0);
 			
 			// The 1/8 factor is to do the scaling inherent in sobel filtering
-			*xxPixel = pow((double)(1./8. * partialXPtr->Pixel(x, y, 0)), 2.);
-			*yyPixel = pow((double)(1./8. * partialYPtr->Pixel(x, y, 0)), 2.);
-			*xyPixel = pow(1./8., 2.) * partialXPtr->Pixel(x, y, 0) * partialYPtr->Pixel(x, y, 0);
+			*xxPixel = pow((double)(1./8. *8. * partialXPtr->Pixel(x, y, 0)), 2.);
+			*yyPixel = pow((double)(1./8. *8. * partialYPtr->Pixel(x, y, 0)), 2.);
+			*xyPixel = pow(1./8. *8., 2.) * partialXPtr->Pixel(x, y, 0) * partialYPtr->Pixel(x, y, 0);
 		}
 	}
 
@@ -409,12 +409,17 @@ bool isLocalMax(CFloatImage srcImage, int x, int y)
 	int height = srcImage.Shape().height;
 	float centerPixel = srcImage.Pixel(x, y, 0);
 
-	for (int row = 0; y < 3; y++)
+	for (int row = 0; row < 5; row++)
 	{
-		for (int col = 0; x < 3; x++)
+		for (int col = 0; col < 5; col++)
 		{
-			int xOffset = x - 1 + col;
-			int yOffset = y - 1 + row;
+			int xOffset = x - 2 + col;
+			int yOffset = y - 2 + row;
+
+			if (xOffset == x && yOffset == y)
+			{
+				continue;
+			}
 
 			float pixelAtOffset;
 			if (xOffset < 0 || yOffset < 0 || xOffset >= width || yOffset >= height)
