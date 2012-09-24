@@ -438,9 +438,9 @@ void ComputeMOPSDescriptors(CFloatImage &image, FeatureSet &features)
 	CFloatImage postHomography = CFloatImage();
 	CFloatImage gaussianImage = GetImageFromMatrix((float *)gaussian5x5Float, 5, 5);
 
-    vector<Feature>::iterator i = features.begin();
-    while (i != features.end()) {
-		Feature &f = *i;
+    vector<Feature>::iterator featureIterator = features.begin();
+    while (featureIterator != features.end()) {
+		Feature &f = *featureIterator;
 
 		CTransform3x3 translationNegative;
 		CTransform3x3 translationPositive;
@@ -468,13 +468,63 @@ void ComputeMOPSDescriptors(CFloatImage &image, FeatureSet &features)
 			}
 		}
 
-		// now we do the subsampling
-		CFloatImage img = featureToImage(f, 41, 41);
+		// now we do the subsampling first round to reduce to a 20x20
+		int imgSize = 41;
+		subsample(&f, imgSize, gaussianImage);
+
+		//second round of subsampling to get it to a 10x10
+		imgSize = 20;
+		subsample(&f, imgSize, gaussianImage);	
+
+		vector<double, std::allocator<double>>::iterator it;
+		CFloatImage img = featureToImage(f, imgSize, imgSize);
 		CFloatImage blurredImg(img.Shape());
 		Convolve(img, blurredImg, gaussianImage);
-		featuresFromImage(&f,blurredImg,41,41);
-		
-		i++;
+		featuresFromImage(&f,blurredImg,imgSize,imgSize);
+		it = f.data.begin();
+
+		for(int y=0; y<imgSize; y++)
+		{
+			for(int x=0; x<imgSize; x++)
+			{
+				if(x ==3 || x==7 || y==3 || y==7)
+				{
+					f.data.erase(it);
+				}
+				else
+				{
+					it++;
+				}
+			}
+		}
+
+		featureIterator++;
+
+	}
+}
+
+void subsample(Feature* f, int imgSize, CFloatImage gaussianImage)
+{
+	vector<double, std::allocator<double>>::iterator it;
+	CFloatImage img = featureToImage(*f, imgSize, imgSize);
+	CFloatImage blurredImg(img.Shape());
+	Convolve(img, blurredImg, gaussianImage);
+	featuresFromImage(f,blurredImg,imgSize,imgSize);
+	it = f->data.begin();
+
+	for(int y=0; y<imgSize; y++)
+	{
+		for(int x=0; x<imgSize; x++)
+		{
+			if(x%2 == 0 || y%2 == 0)
+			{
+				f->data.erase(it);
+			}
+			else
+			{
+				it++;
+			}
+		}
 	}
 }
 
