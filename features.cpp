@@ -644,7 +644,7 @@ void ComputeMOPSDescriptors(CFloatImage &image, FeatureSet &features)
 				}
 			}
 		}
-
+		normalizeIntensities(&f, 8, 8);
 		featureIterator++;
 
 	}
