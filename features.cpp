@@ -590,8 +590,8 @@ void ComputeMOPSDescriptors(CFloatImage &image, FeatureSet &features)
 		CTransform3x3 rotation;
 		CTransform3x3 scale;
 
-		translationNegative = translationNegative.Translation(f.x,f.y);
-		translationPositive = translationPositive.Translation(-f.x,-f.y);
+		translationNegative = translationNegative.Translation(30,30);
+		translationPositive = translationPositive.Translation(-30,-30);
 		rotation = rotation.Rotation(-f.angleRadians * 180/ PI);
 
 		CTransform3x3 finalTransformation = (translationNegative*rotation*translationPositive).Inverse();
