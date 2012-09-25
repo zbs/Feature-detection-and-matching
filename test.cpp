@@ -52,9 +52,8 @@ void testOrientation()
 	printf("Angle: %f\n", angle);
 }
 
-void testRotation()
-{
-	
+void rotation()
+{	
 		CFloatImage matrixImage = GetImageFromMatrix((float *)featureMatrix, 10, 10);
 		CTransform3x3 translationNegative;
 		CTransform3x3 translationPositive;
@@ -97,5 +96,4 @@ void testGetWindow()
 		}
 		printf("\n");
 	}
-
 }

@@ -1,5 +1,4 @@
 /* features.cpp */
-//
 //computeFeatures ./graf/img1.ppm ./graf/features.f 2 2
 // Get intensity differences on a per-40X40-patch level vs on a entire-image level?
 	//per-patch level
@@ -476,7 +475,7 @@ void computeLocalMaxima(CFloatImage &srcImage,CByteImage &destImage)
 	for (int y = 0; y < height; y++) {
         for (int x = 0; x < width; x++) {
 			unsigned char *pixel = &destImage.Pixel(x, y, 0);
-			if (srcImage.Pixel(x, y, 0) >= 5. * stdDev + mean && isLocalMax(srcImage, x, y))
+			if (srcImage.Pixel(x, y, 0) >= 10. * stdDev + mean && isLocalMax(srcImage, x, y))
 			{
 				count++;
 				*pixel = 1;
@@ -645,10 +644,60 @@ void ComputeMOPSDescriptors(CFloatImage &image, FeatureSet &features)
 				}
 			}
 		}
-
+		normalizeIntensities(&f, 8, 8);
 		featureIterator++;
 
 	}
+}
+
+void normalizeIntensities(Feature* f, int width, int height)
+{
+	double mean = 0.;
+	vector<double, std::allocator<double>>::iterator it;
+	it = f->data.begin();
+	// calculate the mean
+	for(int y=0; y<height; y++)
+	{
+		for(int x=0; x<width; x++)
+		{
+			mean+=*it;
+			it++;
+		}
+	}
+	mean = (mean/((double)width*height));
+	
+	// calculate the standard deviation
+	it=f->data.begin();
+	double stddev = 0.;
+	for(int y=0; y<height; y++)
+	{
+		for(int x=0; x<width; x++)
+		{
+			stddev+=pow((*it-mean),2);
+			it++;
+		}
+	}
+	stddev = stddev/((double)width*height);
+	stddev = sqrt(stddev);
+
+	// subtract the mean and divide by the standard deviation
+	Feature returnFeature;
+	returnFeature.angleRadians = f->angleRadians;
+	returnFeature.id = f->id;
+	returnFeature.x = f->x;
+	returnFeature.y = f->y;
+
+	it = f->data.begin();
+	for(int y=0; y<height; y++)
+	{
+		for(int x=0; x<width; x++)
+		{
+			double newVal = (*it - mean)/stddev;
+			returnFeature.data.push_back(newVal);
+			it++;
+		}
+	}
+	*f = returnFeature;
 }
 
 void subsample(Feature* f, int imgSize, CFloatImage gaussianImage)
