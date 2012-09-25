@@ -4,6 +4,7 @@
 #include <FL/Fl_Image.H>
 #include "features.h"
 #include "ImageLib/FileIO.h"
+#include "test.h"
 
 void testGetFloatFromMatrix()
 {
@@ -49,4 +50,8 @@ void testOrientation()
 
 	double angle = GetCanonicalOrientation(0, 0, A, B, C, partialX, partialY);
 	printf("Angle: %f\n", angle);
+}
+
+void testGet41x41()
+{
 }

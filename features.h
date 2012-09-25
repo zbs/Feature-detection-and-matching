@@ -110,7 +110,7 @@ CFloatImage featureToImage(Feature f, int width, int height);
 
 void featuresFromImage(Feature* f, CFloatImage img, int width, int height);
 
-void testConversions();
+void normalizeIntensities(Feature* f, int width, int height);
 
 // Compute Custom descriptors
 void ComputeCustomDescriptors(CFloatImage &image, FeatureSet &features);

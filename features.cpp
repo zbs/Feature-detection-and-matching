@@ -624,6 +624,56 @@ void ComputeMOPSDescriptors(CFloatImage &image, FeatureSet &features)
 	}
 }
 
+void normalizeIntensities(Feature* f, int width, int height)
+{
+	double mean = 0.;
+	vector<double, std::allocator<double>>::iterator it;
+	it = f->data.begin();
+	// calculate the mean
+	for(int y=0; y<height; y++)
+	{
+		for(int x=0; x<width; x++)
+		{
+			mean+=*it;
+			it++;
+		}
+	}
+	mean = (mean/((double)width*height));
+	
+	// calculate the standard deviation
+	it=f->data.begin();
+	double stddev = 0.;
+	for(int y=0; y<height; y++)
+	{
+		for(int x=0; x<width; x++)
+		{
+			stddev+=pow((*it-mean),2);
+			it++;
+		}
+	}
+	stddev = stddev/((double)width*height);
+	stddev = sqrt(stddev);
+
+	// subtract the mean and divide by the standard deviation
+	Feature returnFeature;
+	returnFeature.angleRadians = f->angleRadians;
+	returnFeature.id = f->id;
+	returnFeature.x = f->x;
+	returnFeature.y = f->y;
+
+	it = f->data.begin();
+	for(int y=0; y<height; y++)
+	{
+		for(int x=0; x<width; x++)
+		{
+			double newVal = (*it - mean)/stddev;
+			returnFeature.data.push_back(newVal);
+			it++;
+		}
+	}
+	*f = returnFeature;
+}
+
 void subsample(Feature* f, int imgSize, CFloatImage gaussianImage)
 {
 	vector<double, std::allocator<double>>::iterator it;
