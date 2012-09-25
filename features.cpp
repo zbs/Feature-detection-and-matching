@@ -281,18 +281,31 @@ double GetCanonicalOrientation(int x, int y, CFloatImage A, CFloatImage B, CFloa
 	float bPixel = B.Pixel(x, y, 0);	
 	float cPixel = C.Pixel(x, y, 0);	
 
-	double a = 1;
+	/*double a = 1;
 	double b = -(aPixel+cPixel);
-	double c = (aPixel * cPixel - pow((double)bPixel, 2.));
+	double c = (aPixel * cPixel - pow((double)bPixel, 2.));*/
 
-	double lambda = (- b + sqrt(pow((double)b, 2.) - 4.*a*c)) / (2.*a);
+	//double lambda = (- b + sqrt(pow((double)b, 2.) - 4.*a*c)) / (2.*a);
 
+	double lambda = 1./2. *((aPixel+cPixel) + sqrt(4.*pow((double)bPixel,2.) + pow(((double)aPixel - cPixel), 2.)));
 	double yComponent = aPixel - lambda - bPixel;
 	double xComponent = cPixel - lambda - bPixel;
-
+	
 	if (xComponent == 0.)
 	{
 		return (partialY.Pixel(x, y, 0) > 0)? PI/2. : -PI/2.;
+	}
+
+	double first = aPixel*xComponent + bPixel*yComponent;
+	double second = bPixel*xComponent + cPixel*yComponent;
+	double first_precision = pow((first -lambda * xComponent), 2.);
+	double second_precision = pow((second - lambda * yComponent), 2.);
+
+	//Sanity check for eigenvalues: this confirms our given eigenvalue is
+	//computed correctly
+	if (first_precision > .0000001 || second_precision > .0000001 )
+	{
+		int z = 3;
 	}
 
 	return (partialX.Pixel(x, y, 0) > 0)? atan(yComponent/xComponent) : atan(yComponent/xComponent) + PI;
@@ -348,6 +361,7 @@ void ComputeHarrisFeatures(CFloatImage &image, FeatureSet &features)
 			f.x = x;
 			f.y = y;
 			f.angleRadians = GetCanonicalOrientation(x, y, A, B, C, partialX, partialY);
+				//atan(partialY.Pixel(x, y, 0)/partialX.Pixel(x, y, 0));
 			// Add the feature to the list of features
             features.push_back(f);
         }
@@ -475,7 +489,7 @@ void computeLocalMaxima(CFloatImage &srcImage,CByteImage &destImage)
 	for (int y = 0; y < height; y++) {
         for (int x = 0; x < width; x++) {
 			unsigned char *pixel = &destImage.Pixel(x, y, 0);
-			if (srcImage.Pixel(x, y, 0) >= 10. * stdDev + mean && isLocalMax(srcImage, x, y))
+			if (srcImage.Pixel(x, y, 0) >= 3. * stdDev + mean && isLocalMax(srcImage, x, y))
 			{
 				count++;
 				*pixel = 1;
@@ -555,30 +569,6 @@ void ComputeMOPSDescriptors(CFloatImage &image, FeatureSet &features)
 	int grayHeight = grayImage.Shape().height;
 	int grayWidth = grayImage.Shape().width;
 
-	// RESOLVE whether you find difference on per-patch or per-image level
-	// find the mean
-	//double meanCount = 0;
-	//double meanSum = 0;
-	//for(int y=0; y<grayHeight; y++)
-	//{
-	//	for(int x=0; x<grayWidth; x++)
-	//	{
-	//		meanSum += grayImage.Pixel(x,y,0);
-	//		meanCount++;
-	//	}
-	//}
-
-	//double mean = (meanSum/meanCount);
-
-	//// subtract the mean, making these features intensity invariant
-	//for(int y=0; y<grayHeight; y++)
-	//{
-	//	for(int x=0; x<grayWidth; x++)
-	//	{
-	//		grayImage.Pixel(x,y,0) = grayImage.Pixel(x,y,0) - mean;
-	//	}
-	//}
-
 	// now make this rotation invariant
     vector<Feature>::iterator featureIterator = features.begin();
     while (featureIterator != features.end()) {
@@ -589,15 +579,15 @@ void ComputeMOPSDescriptors(CFloatImage &image, FeatureSet &features)
 		CTransform3x3 rotation;
 		CTransform3x3 scale;
 
-		translationNegative = translationNegative.Translation(30,30);
-		translationPositive = translationPositive.Translation(-30,-30);
+		translationNegative = translationNegative.Translation(f.x,f.y);
+		translationPositive = translationPositive.Translation(-f.x,-f.y);
 		rotation = rotation.Rotation(-f.angleRadians * 180/ PI);
 
 		CTransform3x3 finalTransformation = (translationNegative*rotation*translationPositive).Inverse();
 		//CFloatImage sample61x61Window = 
 		CFloatImage pixelWindow = GetXWindowAroundPixel(grayImage, f.x, f.y, 61);
 
-		WarpGlobal(pixelWindow, postHomography, finalTransformation, eWarpInterpLinear, eWarpInterpNearest);
+		WarpGlobal(grayImage, postHomography, finalTransformation, eWarpInterpLinear, 1.0f);
 
 		//now we get the 41x41 box around the feature
 		for(int row=(f.y-20); row<=(f.y+20); row++)
