@@ -52,6 +52,48 @@ void testOrientation()
 	printf("Angle: %f\n", angle);
 }
 
-void testGet41x41()
+void rotation()
+{	
+		CFloatImage matrixImage = GetImageFromMatrix((float *)featureMatrix, 10, 10);
+		CTransform3x3 translationNegative;
+		CTransform3x3 translationPositive;
+		CTransform3x3 rotation;
+		CFloatImage postHomography;
+
+		Feature f;
+		f.x = 6;
+		f.y = 5;
+		f.angleRadians = PI;
+
+		translationNegative = translationNegative.Translation(f.x,f.y);
+		translationPositive = translationPositive.Translation(-f.x,-f.y);
+
+		rotation = rotation.Rotation(-f.angleRadians * 180/ PI);
+
+
+		WarpGlobal(matrixImage, postHomography, translationNegative*rotation*translationPositive, eWarpInterpLinear, eWarpInterpNearest);
+		for (int i = 0; i < postHomography.Shape().height; i++)
+		{
+			for (int j = 0; j < postHomography.Shape().width; j++)
+			{
+				printf("%.0f\t", postHomography.Pixel(j, i, 0));
+			}
+			printf("\n");
+		}
+}
+
+void testGetWindow()
 {
+	CFloatImage matrixImage = GetImageFromMatrix((float *)featureMatrix, 10, 10);
+
+	CFloatImage sample5x5 = GetXWindowAroundPixel(matrixImage, 5, 4, 5);
+
+	for (int i = 0; i < 5; i++)
+	{
+		for (int j = 0; j < 5; j++)
+		{
+			printf("%f\t", sample5x5.Pixel(j, i, 0));
+		}
+		printf("\n");
+	}
 }

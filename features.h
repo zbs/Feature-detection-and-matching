@@ -67,6 +67,8 @@ CImageOf<T> GetImageFromMatrix(T *matrix, int width, int height);
 
 bool isLocalMax(CFloatImage srcImage, int x, int y);
 
+CFloatImage GetXWindowAroundPixel(CFloatImage srcImage, int x, int y, int size);
+
 void GetHarrisComponents(CFloatImage &srcImage, CFloatImage &A, CFloatImage &B, CFloatImage &C, CFloatImage *partialX=nullptr, CFloatImage *partialY=nullptr);
 
 double GetCanonicalOrientation(int x, int y, CFloatImage A, CFloatImage B, CFloatImage C, CFloatImage partialX, CFloatImage partialY);
