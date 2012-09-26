@@ -1,7 +1,11 @@
 /* features.cpp */
 //computeFeatures ./graf/img1.ppm ./graf/features.f 2 2
+//computeFeatures ./Yosemite/Yosemite1.jpg ./Yosemite_1.f 2 2
+//computeFeatures ./Yosemite/Yosemite2.jpg ./Yosemite_2.f 2 2
 // Get intensity differences on a per-40X40-patch level vs on a entire-image level?
 	//per-patch level
+//roc ./graf_1.f ./graf_2.f ./graf/H1to2p 1 ./graf/roc1.txt ./graf/auc1.txt
+//roc ./Yosemite_1.f ./Yosemite_2.f ./Yosemite/H1to2p 1 ./Yosemite/roc1.txt ./Yosemite/auc1.txt
 // 
 // change standard dev to something normal
 //search for PROVISIONAL MEASURES in this code
@@ -290,7 +294,9 @@ double GetCanonicalOrientation(int x, int y, CFloatImage A, CFloatImage B, CFloa
 	double lambda = 1./2. *((aPixel+cPixel) + sqrt(4.*pow((double)bPixel,2.) + pow(((double)aPixel - cPixel), 2.)));
 	double yComponent = aPixel - lambda - bPixel;
 	double xComponent = cPixel - lambda - bPixel;
-	
+	/*y = -b
+	x = a - lambd
+	*/
 	if (xComponent == 0.)
 	{
 		return (partialY.Pixel(x, y, 0) > 0)? PI/2. : -PI/2.;
@@ -308,7 +314,9 @@ double GetCanonicalOrientation(int x, int y, CFloatImage A, CFloatImage B, CFloa
 		int z = 3;
 	}
 
-	return (partialX.Pixel(x, y, 0) > 0)? atan(yComponent/xComponent) : atan(yComponent/xComponent) + PI;
+	return (partialX.Pixel(x, y, 0) > 0)? atan(-bPixel/(aPixel-lambda)) : atan(-bPixel/(aPixel-lambda)) + PI;
+
+	//return (partialX.Pixel(x, y, 0) > 0)? atan(yComponent/xComponent) : atan(yComponent/xComponent) + PI;
 }
 void ComputeHarrisFeatures(CFloatImage &image, FeatureSet &features)
 {
@@ -414,7 +422,14 @@ void computeHarrisValues(CFloatImage &srcImage, CFloatImage &harrisImage)
 			
 			float *pixel = &harrisImage.Pixel(x, y, 0);
 
-			*pixel = determinant / trace;
+			if (trace == 0)
+			{
+				*pixel = 0;
+			}
+			else
+			{
+				*pixel = determinant / trace;
+			}
         }
     }
 }
@@ -472,6 +487,11 @@ void computeLocalMaxima(CFloatImage &srcImage,CByteImage &destImage)
 
 	for (int y = 0; y < height; y++) {
         for (int x = 0; x < width; x++) {
+			float pixel = srcImage.Pixel(x, y, 0);
+			if (!(pixel >= 0 || pixel < 0))
+			{
+				auto error = "TRUE";
+			}
 			sum += srcImage.Pixel(x, y, 0);
 		}
     }
@@ -489,7 +509,7 @@ void computeLocalMaxima(CFloatImage &srcImage,CByteImage &destImage)
 	for (int y = 0; y < height; y++) {
         for (int x = 0; x < width; x++) {
 			unsigned char *pixel = &destImage.Pixel(x, y, 0);
-			if (srcImage.Pixel(x, y, 0) >= 3. * stdDev + mean && isLocalMax(srcImage, x, y))
+			if (srcImage.Pixel(x, y, 0) >= 3.*stdDev + mean && isLocalMax(srcImage, x, y))
 			{
 				count++;
 				*pixel = 1;
@@ -581,8 +601,8 @@ void ComputeMOPSDescriptors(CFloatImage &image, FeatureSet &features)
 
 		translationNegative = translationNegative.Translation(f.x,f.y);
 		translationPositive = translationPositive.Translation(-f.x,-f.y);
-		rotation = rotation.Rotation(-f.angleRadians * 180/ PI);
-
+		//rotation = rotation.Rotation(-f.angleRadians * 180/ PI);
+		
 		CTransform3x3 finalTransformation = (translationNegative*rotation*translationPositive).Inverse();
 		//CFloatImage sample61x61Window = 
 		CFloatImage pixelWindow = GetXWindowAroundPixel(grayImage, f.x, f.y, 61);
@@ -781,7 +801,7 @@ void ssdMatchFeatures(const FeatureSet &f1, const FeatureSet &f2, vector<Feature
 
         matches[i].id1 = f1[i].id;
         matches[i].id2 = idBest;
-        matches[i].score = -dBest;
+        matches[i].score = dBest;
         totalScore += matches[i].score;
     }
 }
@@ -828,7 +848,7 @@ void ratioMatchFeatures(const FeatureSet &f1, const FeatureSet &f2, vector<Featu
 
 		matches[i].id1 = f1[i].id;
 		matches[i].id2 = idBest;
-		matches[i].score = -dBest/dSecondBest;
+		matches[i].score = dBest/dSecondBest;
 		totalScore += matches[i].score;
 	}
 }
