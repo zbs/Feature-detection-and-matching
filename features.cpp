@@ -582,8 +582,13 @@ CFloatImage GetXWindowAroundPixel(CFloatImage srcImage, int x, int y, int size)
 void ComputeMOPSDescriptors(CFloatImage &image, FeatureSet &features)
 {
 	CFloatImage grayImage=ConvertToGray(image);
+	CFloatImage blurredImage;
+	
+	Convolve(grayImage, blurredImage, ConvolveKernel_7x7);
+
 	CFloatImage postHomography = CFloatImage();
 	CFloatImage gaussianImage = GetImageFromMatrix((float *)gaussian5x5Float, 5, 5);
+
 
 	//first make the image invariant to changes in illumination by subtracting off the mean
 	int grayHeight = grayImage.Shape().height;
@@ -594,37 +599,34 @@ void ComputeMOPSDescriptors(CFloatImage &image, FeatureSet &features)
     while (featureIterator != features.end()) {
 		Feature &f = *featureIterator;
 
+		CTransform3x3 scaleTransform = CTransform3x3();
 		CTransform3x3 translationNegative;
 		CTransform3x3 translationPositive;
 		CTransform3x3 rotation;
-		CTransform3x3 scale;
+
+		double scaleFactor = 41/8;
+		scaleTransform[0][0] = scaleFactor;
+		scaleTransform[1][1] = scaleFactor;
 
 		translationNegative = translationNegative.Translation(f.x,f.y);
-		translationPositive = translationPositive.Translation(-f.x,-f.y);
-		//rotation = rotation.Rotation(-f.angleRadians * 180/ PI);
+		translationPositive = translationPositive.Translation(-4, -4);
+		rotation = rotation.Rotation(f.angleRadians * 180/ PI);
 		
-		CTransform3x3 finalTransformation = (translationNegative*rotation*translationPositive).Inverse();
+		CTransform3x3 finalTransformation = translationNegative * rotation * scaleTransform * translationPositive;
 		//CFloatImage sample61x61Window = 
-		CFloatImage pixelWindow = GetXWindowAroundPixel(grayImage, f.x, f.y, 61);
+		//CFloatImage pixelWindow = GetXWindowAroundPixel(grayImage, f.x, f.y, 61);
 
-		WarpGlobal(grayImage, postHomography, finalTransformation, eWarpInterpLinear, 1.0f);
+		WarpGlobal(blurredImage, postHomography, finalTransformation, eWarpInterpLinear, 1.0f);
 
 		//now we get the 41x41 box around the feature
-		for(int row=(f.y-20); row<=(f.y+20); row++)
+		for(int row=0; row< 8; row++)
 		{
-			for(int col=(f.x-20);col<=(f.x+20);col++)
+			for(int col=0;col< 8;col++)
 			{
-				if(row<0 || row>=postHomography.Shape().height || col<0 || col>=postHomography.Shape().width)
-				{
-					f.data.push_back(0.0);
-				}
-				else
-				{
-					f.data.push_back(postHomography.Pixel(col,row,0));
-				}
+				f.data.push_back(postHomography.Pixel(col, row, 0));
 			}
 		}
-
+		/*
 		// now we do the subsampling first round to reduce to a 20x20
 		int imgSize = 41;
 		subsample(&f, imgSize, gaussianImage);
@@ -654,6 +656,7 @@ void ComputeMOPSDescriptors(CFloatImage &image, FeatureSet &features)
 				}
 			}
 		}
+		*/
 		normalizeIntensities(&f, 8, 8);
 		featureIterator++;
 
